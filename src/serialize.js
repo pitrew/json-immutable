@@ -1,8 +1,4 @@
-const debug = require('debug')('json-immutable')
 const immutable = require('immutable')
-
-const JSONStreamStringify = require('json-stream-stringify')
-
 const nativeTypeHelpers = require('./helpers/native-type-helpers')
 
 
@@ -25,7 +21,6 @@ function serialize(data, options = {}) {
     //   Immutable.JS provides its own #toJSON() implementation which does not
     //   preserve map key types.
     patchedData.toJSON = function () {
-      debug('#toJSON()', this)
       return this
     }
 
@@ -37,20 +32,7 @@ function serialize(data, options = {}) {
   return JSON.stringify(data, replace.bind(this, options), indentation)
 }
 
-
-function createSerializationStream(data, options = {}) {
-  const indentation = options.pretty ? 2 : 0
-  const replacer = options.bigChunks ? replace.bind(this, options) : replaceAsync.bind(this, options)
-
-  const stream = JSONStreamStringify(data, replacer, indentation)
-  return stream
-}
-
-
 function replace(options, key, value) {
-  debug('key:', key)
-  debug('value:', value)
-
   let result = value
   const replaceBind = replace.bind(this, options)
 
@@ -73,55 +55,10 @@ function replace(options, key, value) {
     result = replacePlainObject(value, replaceBind)
   }
 
-  debug('result:', result, '\n---')
   return result
 }
-
-function replaceAsync(options, key, value) {
-  debug('key:', key)
-  debug('value:', value)
-
-  let result = value
-  const replaceAsyncBind = replaceAsync.bind(this, options)
-
-  if (!(value instanceof Promise)) {
-    if (value instanceof immutable.Record) {
-      result = new Promise((resolve) => {
-        setImmediate(() => {
-          resolve(replaceRecord(value, options, replaceAsyncBind))
-        })
-      })
-    }
-    else if (immutable.Iterable.isIterable(value)) {
-      result = new Promise((resolve) => {
-        setImmediate(() => {
-          resolve(replaceIterable(value, replaceAsyncBind))
-        })
-      })
-    }
-    else if (Array.isArray(value)) {
-      result = new Promise((resolve) => {
-        setImmediate(() => {
-          resolve(replaceArray(value, replaceAsyncBind))
-        })
-      })
-    }
-    else if (typeof value === 'object' && value !== null) {
-      result = new Promise((resolve) => {
-        setImmediate(() => {
-          resolve(replacePlainObject(value, replaceAsyncBind))
-        })
-      })
-    }
-  }
-
-  debug('result:', result, '\n---')
-  return result
-}
-
 
 function replaceRecord(rec, options, replaceChild) {
-  debug('replaceRecord()', rec)
   const recordDataMap = rec.toMap()
   const recordData = {}
 
@@ -143,7 +80,6 @@ function replaceRecord(rec, options, replaceChild) {
 
 
 function replaceIterable(iter, replaceChild) {
-  debug('replaceIterable()', iter)
 
   const iterableType = iter.constructor.name
   switch (iterableType) {
@@ -176,7 +112,6 @@ function replaceIterable(iter, replaceChild) {
 
 
 function replaceArray(arr, replaceChild) {
-  debug('replaceArray()', arr)
 
   return arr.map((value, index) => {
     return replaceChild(index, value)
@@ -185,7 +120,6 @@ function replaceArray(arr, replaceChild) {
 
 
 function replacePlainObject(obj, replaceChild) {
-  debug('replacePlainObject()', obj)
 
   const objData = {}
   Object.keys(obj).forEach((key) => {
@@ -197,6 +131,5 @@ function replacePlainObject(obj, replaceChild) {
 
 
 module.exports = {
-  createSerializationStream,
   serialize,
 }
